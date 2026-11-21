@@ -1,5 +1,5 @@
 # Parking Lot Simulator
-**Course:** Data Structures Lab (CS2001)  
+**Course:** Data Structures Lab (CL2001)  
 **Institution:** FAST National University of Computer & Emerging Sciences (FAST-NUCES), Karachi Campus  
 **Section:** BAI-3A  
 

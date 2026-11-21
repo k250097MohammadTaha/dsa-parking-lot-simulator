@@ -1,7 +1,7 @@
 # Parking Lot Simulator
-**Course:** Data Structures & Algorithms Lab (CS2001)  
+**Course:** Data Structures Lab (CS2001)  
 **Institution:** FAST National University of Computer & Emerging Sciences (FAST-NUCES), Karachi Campus  
-**Section:** BAI-2A  
+**Section:** BAI-3A  
 
 ### Group Members
 * **Member 1:** Mohammad Taha (`25K-0097`)

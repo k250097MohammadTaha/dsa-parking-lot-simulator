@@ -3,6 +3,7 @@
 
 using namespace std;
 
+// Converts lowercase letters to uppercase using ASCII offset
 string toUpperCase(string str)
 {
     for (int i = 0; i < (int)str.length(); i++)
@@ -15,6 +16,7 @@ string toUpperCase(string str)
     return str;
 }
 
+// Removes leading and trailing spaces from user input
 string trimSpaces(string str)
 {
     int start = 0;
@@ -61,6 +63,7 @@ int stringToInt(string str)
     return num;
 }
 
+// Parses time whether entered as "09 30", "09:30", or "0930"
 bool parseSmartTime(string input, int &hr, int &min)
 {
     input = trimSpaces(input);
@@ -103,6 +106,7 @@ bool parseSmartTime(string input, int &hr, int &min)
     }
     else
     {
+        // Handle 3 or 4 digit input when user forgets space (e.g., 930 or 0930)
         if (!isAllDigits(input))
         {
             return false;
@@ -191,6 +195,7 @@ void promptValidTime(string label, int &hr, int &min)
     }
 }
 
+// Stores visual status of each physical parking bay
 class SlotInfo
 {
 public:
@@ -208,6 +213,7 @@ public:
     }
 };
 
+// Module 1: Custom Min-Heap to allocate the closest available slot in O(log N) time
 class MinHeap
 {
 public:
@@ -254,6 +260,7 @@ public:
         return currentSize == 0;
     }
 
+    // Restores min-heap order from bottom to top after insertion
     void heapifyUp(int index)
     {
         while (index != 0 && heapArr[parent(index)] > heapArr[index])
@@ -263,6 +270,7 @@ public:
         }
     }
 
+    // Restores min-heap order from top to bottom after extracting root
     void heapifyDown(int index)
     {
         int smallest = index;
@@ -296,6 +304,7 @@ public:
         heapifyUp(i);
     }
 
+    // Removes and returns the smallest slot number (closest to gate)
     int extractMin()
     {
         if (currentSize <= 0)
@@ -324,6 +333,7 @@ public:
     }
 };
 
+// Singly linked list node for Hash Table separate chaining
 class VehicleNode
 {
 public:
@@ -347,6 +357,7 @@ public:
     }
 };
 
+// Module 2: Custom Hash Table for O(1) average-time vehicle lookup and checkout
 class HashTable
 {
 public:
@@ -387,6 +398,7 @@ public:
         totalParked = 0;
     }
 
+    // Polynomial rolling hash using prime multiplier 31
     int hashFunction(string key)
     {
         int hashVal = 0;
@@ -401,6 +413,7 @@ public:
         return hashVal;
     }
 
+    // Inserts new vehicle at the head of the bucket chain in O(1) time
     void insertVehicle(string plate, string owner, string type, int slot, int hr, int min)
     {
         int index = hashFunction(plate);
@@ -499,6 +512,7 @@ public:
     }
 };
 
+// Module 3A: Custom FIFO Queue to hold overflow vehicles when parking lot is full
 class WaitQueue
 {
 public:
@@ -582,6 +596,7 @@ public:
         return false;
     }
 
+    // Removes a specific vehicle if its gate entry is undone while waiting
     bool removeSpecificVehicle(string plate)
     {
         QueueNode *current = front;
@@ -665,6 +680,7 @@ public:
     }
 };
 
+// Module 3B: Custom LIFO Stack for gate error rollbacks and transaction history
 class ActionStack
 {
 public:
@@ -747,6 +763,7 @@ public:
     }
 };
 
+// Main controller connecting MinHeap, HashTable, WaitQueue, and ActionStack
 class ParkingLotSimulator
 {
 public:
@@ -773,6 +790,7 @@ public:
         undoStack = new ActionStack();
         auditLogStack = new ActionStack();
 
+        // Populate Min-Heap with all vacant slot numbers (1 to maxSlots)
         for (int i = 1; i <= maxSlots; i++)
         {
             slots[i].slotNumber = i;
@@ -838,6 +856,7 @@ public:
         return 100;
     }
 
+    // Assigns nearest slot from Min-Heap or enqueues vehicle if lot is full
     void parkVehicle(string plate, string owner, string type, int hr, int min)
     {
         plate = toUpperCase(trimSpaces(plate));
@@ -893,166 +912,6 @@ public:
         }
     }
 
-    void checkoutVehicle(string plate, int exitHr, int exitMin)
-    {
-        plate = toUpperCase(trimSpaces(plate));
-        if (plate == "")
-        {
-            cout << "[ERROR] License plate cannot be empty.\n";
-            return;
-        }
-        if (!isValidTime(exitHr, exitMin))
-        {
-            cout << "[ERROR] Invalid exit time.\n";
-            return;
-        }
-
-        VehicleNode *record = activeRegistry->searchVehicle(plate);
-        if (record == NULL)
-        {
-            cout << "[ERROR] Vehicle " << plate << " not found in the active parking lot.\n";
-            return;
-        }
-
-        int freedSlot = record->slotNumber;
-        string owner = record->ownerName;
-        string type = record->vehicleType;
-        int entryTotalMin = record->entryHour * 60 + record->entryMinute;
-        int exitTotalMin = exitHr * 60 + exitMin;
-
-        int diffMin = exitTotalMin - entryTotalMin;
-        if (diffMin < 0)
-        {
-            diffMin += 24 * 60;
-        }
-        if (diffMin == 0)
-        {
-            diffMin = 60;
-        }
-
-        int billedHours = (diffMin + 59) / 60;
-        int rate = getHourlyRate(type);
-        int totalFee = billedHours * rate;
-
-        activeRegistry->removeVehicle(plate);
-        slots[freedSlot].isOccupied = false;
-        slots[freedSlot].licensePlate = "";
-        slots[freedSlot].vehicleType = "";
-
-        totalRevenue += totalFee;
-        totalCheckouts++;
-        auditLogStack->push("CHECKOUT", plate, owner, type, freedSlot, totalFee, billedHours);
-
-        cout << "\n--- RECEIPT FOR VEHICLE " << plate << " ---\n";
-        cout << "Owner Name     : " << owner << "\n";
-        cout << "Vehicle Type   : " << type << " (Rs. " << rate << "/hr)\n";
-        cout << "Vacated Slot   : #" << freedSlot << "\n";
-        cout << "Billed Duration: " << billedHours << " hour(s)\n";
-        cout << "Total Fee Due  : Rs. " << totalFee << "\n";
-        cout << "-------------------------------------\n";
-
-        if (!overflowQueue->isEmpty())
-        {
-            QueueNode *nextCar = overflowQueue->dequeue();
-            slots[freedSlot].isOccupied = true;
-            slots[freedSlot].licensePlate = nextCar->licensePlate;
-            slots[freedSlot].vehicleType = nextCar->vehicleType;
-
-            activeRegistry->insertVehicle(nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, freedSlot, exitHr, exitMin);
-            undoStack->push("PARK", nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, freedSlot, 0, 0);
-            auditLogStack->push("AUTO-PARK", nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, freedSlot, 0, 0);
-
-            cout << "[QUEUE AUTO-ASSIGN] Vacated Slot #" << freedSlot << " automatically assigned to waiting vehicle "
-                 << nextCar->licensePlate << " (" << nextCar->ownerName << ").\n";
-            delete nextCar;
-        }
-        else
-        {
-            slotHeap->insertSlot(freedSlot);
-            cout << "[SLOT RESTORED] Slot #" << freedSlot << " returned to Min-Heap as available.\n";
-        }
-    }
-
-    void undoLastGateEntry()
-    {
-        while (!undoStack->isEmpty())
-        {
-            StackNode *lastAction = undoStack->pop();
-
-            if (lastAction->actionType == "WAIT")
-            {
-                if (overflowQueue->removeSpecificVehicle(lastAction->licensePlate))
-                {
-                    auditLogStack->push("UNDO-WAIT", lastAction->licensePlate, lastAction->ownerName, lastAction->vehicleType, -1, 0, 0);
-                    cout << "[UNDO SUCCESS] Removed vehicle " << lastAction->licensePlate << " from the waiting queue.\n";
-                    delete lastAction;
-                    return;
-                }
-            }
-            else if (lastAction->actionType == "PARK")
-            {
-                VehicleNode *currentRecord = activeRegistry->searchVehicle(lastAction->licensePlate);
-                if (currentRecord != NULL && currentRecord->slotNumber == lastAction->slotNumber)
-                {
-                    int slotToFree = lastAction->slotNumber;
-                    activeRegistry->removeVehicle(lastAction->licensePlate);
-                    slots[slotToFree].isOccupied = false;
-                    slots[slotToFree].licensePlate = "";
-                    slots[slotToFree].vehicleType = "";
-
-                    auditLogStack->push("UNDO-PARK", lastAction->licensePlate, lastAction->ownerName, lastAction->vehicleType, slotToFree, 0, 0);
-                    cout << "[UNDO SUCCESS] Cancelled gate entry for " << lastAction->licensePlate
-                         << " and freed Slot #" << slotToFree << ".\n";
-
-                    if (!overflowQueue->isEmpty())
-                    {
-                        QueueNode *nextCar = overflowQueue->dequeue();
-                        slots[slotToFree].isOccupied = true;
-                        slots[slotToFree].licensePlate = nextCar->licensePlate;
-                        slots[slotToFree].vehicleType = nextCar->vehicleType;
-
-                        activeRegistry->insertVehicle(nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, slotToFree, nextCar->arrivalHour, nextCar->arrivalMinute);
-                        undoStack->push("PARK", nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, slotToFree, 0, 0);
-                        cout << "[QUEUE AUTO-ASSIGN] Freed Slot #" << slotToFree << " assigned to waiting vehicle " << nextCar->licensePlate << ".\n";
-                        delete nextCar;
-                    }
-                    else
-                    {
-                        slotHeap->insertSlot(slotToFree);
-                    }
-
-                    delete lastAction;
-                    return;
-                }
-            }
-            delete lastAction;
-        }
-        cout << "[UNDO NOTICE] No active check-in actions available to undo.\n";
-    }
-
-    void searchVehicleByPlate(string plate)
-    {
-        plate = toUpperCase(trimSpaces(plate));
-        VehicleNode *found = activeRegistry->searchVehicle(plate);
-        if (found != NULL)
-        {
-            cout << "\n[VEHICLE LOCATED IN PARKING LOT]\n";
-            cout << "License Plate : " << found->licensePlate << "\n";
-            cout << "Owner Name    : " << found->ownerName << "\n";
-            cout << "Vehicle Type  : " << found->vehicleType << "\n";
-            cout << "Assigned Slot : #" << found->slotNumber << " (Distance " << found->slotNumber << " units from entrance)\n";
-            cout << "Check-In Time : " << (found->entryHour < 10 ? "0" : "") << found->entryHour
-                 << ":" << (found->entryMinute < 10 ? "0" : "") << found->entryMinute << "\n";
-            return;
-        }
-        if (overflowQueue->isAlreadyWaiting(plate))
-        {
-            cout << "\n[VEHICLE IN WAITING QUEUE] Vehicle " << plate << " is currently waiting for an empty slot.\n";
-            return;
-        }
-        cout << "\n[NOT FOUND] Vehicle " << plate << " is neither parked nor in the waiting queue.\n";
-    }
-
     void displayParkingGrid()
     {
         cout << "\n================ LIVE PARKING LOT MAP ================\n";
@@ -1089,65 +948,237 @@ public:
         cout << "======================================================\n";
     }
 
-    void displaySummaryStats()
-    {
-        cout << "\n================ REVENUE & SYSTEM SUMMARY ================\n";
-        cout << "Total Vehicles Currently Parked : " << activeRegistry->totalParked << "\n";
-        cout << "Total Vehicles in Waiting Line  : " << overflowQueue->count << "\n";
-        cout << "Total Vehicles Checked Out      : " << totalCheckouts << "\n";
-        cout << "Total Parking Revenue Collected : Rs. " << totalRevenue << "\n";
-        cout << "==========================================================\n";
-        auditLogStack->displayHistory();
-    }
-
-    void runAutomatedTestSuite()
-    {
-        cout << "\n************************************************************\n";
-        cout << "   RUNNING AUTOMATED NORMAL & EDGE-CASE TEST SUITE\n";
-        cout << "************************************************************\n";
-
-        resetLot(3);
-        cout << "\n[TEST 1: Empty Lot Checkout & Undo Edge Cases]\n";
-        checkoutVehicle("KHI-9999", 10, 0);
-        undoLastGateEntry();
-
-        cout << "\n[TEST 2: Invalid Input & Lowercase Normalization]\n";
-        parkVehicle("", "Ali", "Car", 9, 0);
-        parkVehicle("abc-123", "Ali", "car", 25, 70);
-
-        cout << "\n[TEST 3: Normal Nearest-Slot Allocation via Min-Heap (3-Slot Lot)]\n";
-        parkVehicle("khi-1001", "Taha", "car", 8, 30);
-        parkVehicle("KHI-1002", "Haseeb", "bike", 8, 45);
-        parkVehicle("KHI-1003", "Bilal", "suv", 9, 0);
-        displayParkingGrid();
-
-        cout << "\n[TEST 4: Duplicate License Plate Check (Case-Insensitive)]\n";
-        parkVehicle("KHI-1001", "Taha", "CAR", 9, 10);
-
-        cout << "\n[TEST 5: Overflow Waiting Queue When Lot is Full]\n";
-        parkVehicle("KHI-2001", "Usman", "Car", 9, 15);
-        parkVehicle("KHI-2002", "Zain", "Bike", 9, 20);
-        overflowQueue->displayQueue();
-
-        cout << "\n[TEST 6: Undo Gate Entry from Waiting Queue]\n";
-        undoLastGateEntry();
-        overflowQueue->displayQueue();
-
-        cout << "\n[TEST 7: Middle-Slot Checkout & Automatic Queue Assignment]\n";
-        checkoutVehicle("khi-1002", 11, 15);
-        displayParkingGrid();
-
-        cout << "\n[TEST 8: Out-of-Order Checkout & Min-Heap Nearest Slot Restoration]\n";
-        checkoutVehicle("KHI-1003", 12, 0);
-        checkoutVehicle("KHI-1001", 12, 30);
-        displayParkingGrid();
-        parkVehicle("KHI-3001", "Hamza", "Car", 13, 0);
-        displayParkingGrid();
-
-        displaySummaryStats();
-        cout << "\n**************** ALL TESTS COMPLETED ****************\n";
-    }
+    // Declarations for Member 2 and Member 3 methods defined below
+    void checkoutVehicle(string plate, int exitHr, int exitMin);
+    void searchVehicleByPlate(string plate);
+    void displaySummaryStats();
+    void undoLastGateEntry();
+    void runAutomatedTestSuite();
 };
+
+// Calculates parking bill in O(1) lookup time and reassigns freed slot
+void ParkingLotSimulator::checkoutVehicle(string plate, int exitHr, int exitMin)
+{
+    plate = toUpperCase(trimSpaces(plate));
+    if (plate == "")
+    {
+        cout << "[ERROR] License plate cannot be empty.\n";
+        return;
+    }
+    if (!isValidTime(exitHr, exitMin))
+    {
+        cout << "[ERROR] Invalid exit time.\n";
+        return;
+    }
+
+    VehicleNode *record = activeRegistry->searchVehicle(plate);
+    if (record == NULL)
+    {
+        cout << "[ERROR] Vehicle " << plate << " not found in the active parking lot.\n";
+        return;
+    }
+
+    int freedSlot = record->slotNumber;
+    string owner = record->ownerName;
+    string type = record->vehicleType;
+    int entryTotalMin = record->entryHour * 60 + record->entryMinute;
+    int exitTotalMin = exitHr * 60 + exitMin;
+
+    // Handle overnight wrap-around and round up partial hours
+    int diffMin = exitTotalMin - entryTotalMin;
+    if (diffMin < 0)
+    {
+        diffMin += 24 * 60;
+    }
+    if (diffMin == 0)
+    {
+        diffMin = 60;
+    }
+
+    int billedHours = (diffMin + 59) / 60;
+    int rate = getHourlyRate(type);
+    int totalFee = billedHours * rate;
+
+    activeRegistry->removeVehicle(plate);
+    slots[freedSlot].isOccupied = false;
+    slots[freedSlot].licensePlate = "";
+    slots[freedSlot].vehicleType = "";
+
+    totalRevenue += totalFee;
+    totalCheckouts++;
+    auditLogStack->push("CHECKOUT", plate, owner, type, freedSlot, totalFee, billedHours);
+
+    cout << "\n--- RECEIPT FOR VEHICLE " << plate << " ---\n";
+    cout << "Owner Name     : " << owner << "\n";
+    cout << "Vehicle Type   : " << type << " (Rs. " << rate << "/hr)\n";
+    cout << "Vacated Slot   : #" << freedSlot << "\n";
+    cout << "Billed Duration: " << billedHours << " hour(s)\n";
+    cout << "Total Fee Due  : Rs. " << totalFee << "\n";
+    cout << "-------------------------------------\n";
+
+    // If cars are waiting in FIFO queue, assign vacated slot immediately
+    if (!overflowQueue->isEmpty())
+    {
+        QueueNode *nextCar = overflowQueue->dequeue();
+        slots[freedSlot].isOccupied = true;
+        slots[freedSlot].licensePlate = nextCar->licensePlate;
+        slots[freedSlot].vehicleType = nextCar->vehicleType;
+
+        activeRegistry->insertVehicle(nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, freedSlot, exitHr, exitMin);
+        undoStack->push("PARK", nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, freedSlot, 0, 0);
+        auditLogStack->push("AUTO-PARK", nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, freedSlot, 0, 0);
+
+        cout << "[QUEUE AUTO-ASSIGN] Vacated Slot #" << freedSlot << " automatically assigned to waiting vehicle "
+             << nextCar->licensePlate << " (" << nextCar->ownerName << ").\n";
+        delete nextCar;
+    }
+    else
+    {
+        slotHeap->insertSlot(freedSlot);
+        cout << "[SLOT RESTORED] Slot #" << freedSlot << " returned to Min-Heap as available.\n";
+    }
+}
+
+void ParkingLotSimulator::searchVehicleByPlate(string plate)
+{
+    plate = toUpperCase(trimSpaces(plate));
+    VehicleNode *found = activeRegistry->searchVehicle(plate);
+    if (found != NULL)
+    {
+        cout << "\n[VEHICLE LOCATED IN PARKING LOT]\n";
+        cout << "License Plate : " << found->licensePlate << "\n";
+        cout << "Owner Name    : " << found->ownerName << "\n";
+        cout << "Vehicle Type  : " << found->vehicleType << "\n";
+        cout << "Assigned Slot : #" << found->slotNumber << " (Distance " << found->slotNumber << " units from entrance)\n";
+        cout << "Check-In Time : " << (found->entryHour < 10 ? "0" : "") << found->entryHour
+             << ":" << (found->entryMinute < 10 ? "0" : "") << found->entryMinute << "\n";
+        return;
+    }
+    if (overflowQueue->isAlreadyWaiting(plate))
+    {
+        cout << "\n[VEHICLE IN WAITING QUEUE] Vehicle " << plate << " is currently waiting for an empty slot.\n";
+        return;
+    }
+    cout << "\n[NOT FOUND] Vehicle " << plate << " is neither parked nor in the waiting queue.\n";
+}
+
+void ParkingLotSimulator::displaySummaryStats()
+{
+    cout << "\n================ REVENUE & SYSTEM SUMMARY ================\n";
+    cout << "Total Vehicles Currently Parked : " << activeRegistry->totalParked << "\n";
+    cout << "Total Vehicles in Waiting Line  : " << overflowQueue->count << "\n";
+    cout << "Total Vehicles Checked Out      : " << totalCheckouts << "\n";
+    cout << "Total Parking Revenue Collected : Rs. " << totalRevenue << "\n";
+    cout << "==========================================================\n";
+    auditLogStack->displayHistory();
+}
+
+// Pops the latest check-in from the LIFO stack and reverts the state
+void ParkingLotSimulator::undoLastGateEntry()
+{
+    while (!undoStack->isEmpty())
+    {
+        StackNode *lastAction = undoStack->pop();
+
+        if (lastAction->actionType == "WAIT")
+        {
+            if (overflowQueue->removeSpecificVehicle(lastAction->licensePlate))
+            {
+                auditLogStack->push("UNDO-WAIT", lastAction->licensePlate, lastAction->ownerName, lastAction->vehicleType, -1, 0, 0);
+                cout << "[UNDO SUCCESS] Removed vehicle " << lastAction->licensePlate << " from the waiting queue.\n";
+                delete lastAction;
+                return;
+            }
+        }
+        else if (lastAction->actionType == "PARK")
+        {
+            VehicleNode *currentRecord = activeRegistry->searchVehicle(lastAction->licensePlate);
+            if (currentRecord != NULL && currentRecord->slotNumber == lastAction->slotNumber)
+            {
+                int slotToFree = lastAction->slotNumber;
+                activeRegistry->removeVehicle(lastAction->licensePlate);
+                slots[slotToFree].isOccupied = false;
+                slots[slotToFree].licensePlate = "";
+                slots[slotToFree].vehicleType = "";
+
+                auditLogStack->push("UNDO-PARK", lastAction->licensePlate, lastAction->ownerName, lastAction->vehicleType, slotToFree, 0, 0);
+                cout << "[UNDO SUCCESS] Cancelled gate entry for " << lastAction->licensePlate
+                     << " and freed Slot #" << slotToFree << ".\n";
+
+                if (!overflowQueue->isEmpty())
+                {
+                    QueueNode *nextCar = overflowQueue->dequeue();
+                    slots[slotToFree].isOccupied = true;
+                    slots[slotToFree].licensePlate = nextCar->licensePlate;
+                    slots[slotToFree].vehicleType = nextCar->vehicleType;
+
+                    activeRegistry->insertVehicle(nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, slotToFree, nextCar->arrivalHour, nextCar->arrivalMinute);
+                    undoStack->push("PARK", nextCar->licensePlate, nextCar->ownerName, nextCar->vehicleType, slotToFree, 0, 0);
+                    cout << "[QUEUE AUTO-ASSIGN] Freed Slot #" << slotToFree << " assigned to waiting vehicle " << nextCar->licensePlate << ".\n";
+                    delete nextCar;
+                }
+                else
+                {
+                    slotHeap->insertSlot(slotToFree);
+                }
+
+                delete lastAction;
+                return;
+            }
+        }
+        delete lastAction;
+    }
+    cout << "[UNDO NOTICE] No active check-in actions available to undo.\n";
+}
+
+// Automated test cases covering normal operations, invalid inputs, and boundary conditions
+void ParkingLotSimulator::runAutomatedTestSuite()
+{
+    cout << "\n************************************************************\n";
+    cout << "   RUNNING AUTOMATED NORMAL & EDGE-CASE TEST SUITE\n";
+    cout << "************************************************************\n";
+
+    resetLot(3);
+    cout << "\n[TEST 1: Empty Lot Checkout & Undo Edge Cases]\n";
+    checkoutVehicle("KHI-9999", 10, 0);
+    undoLastGateEntry();
+
+    cout << "\n[TEST 2: Invalid Input & Lowercase Normalization]\n";
+    parkVehicle("", "Ali", "Car", 9, 0);
+    parkVehicle("abc-123", "Ali", "car", 25, 70);
+
+    cout << "\n[TEST 3: Normal Nearest-Slot Allocation via Min-Heap (3-Slot Lot)]\n";
+    parkVehicle("khi-1001", "Taha", "car", 8, 30);
+    parkVehicle("KHI-1002", "Haseeb", "bike", 8, 45);
+    parkVehicle("KHI-1003", "Bilal", "suv", 9, 0);
+    displayParkingGrid();
+
+    cout << "\n[TEST 4: Duplicate License Plate Check (Case-Insensitive)]\n";
+    parkVehicle("KHI-1001", "Taha", "CAR", 9, 10);
+
+    cout << "\n[TEST 5: Overflow Waiting Queue When Lot is Full]\n";
+    parkVehicle("KHI-2001", "Usman", "Car", 9, 15);
+    parkVehicle("KHI-2002", "Zain", "Bike", 9, 20);
+    overflowQueue->displayQueue();
+
+    cout << "\n[TEST 6: Undo Gate Entry from Waiting Queue]\n";
+    undoLastGateEntry();
+    overflowQueue->displayQueue();
+
+    cout << "\n[TEST 7: Middle-Slot Checkout & Automatic Queue Assignment]\n";
+    checkoutVehicle("khi-1002", 11, 15);
+    displayParkingGrid();
+
+    cout << "\n[TEST 8: Out-of-Order Checkout & Min-Heap Nearest Slot Restoration]\n";
+    checkoutVehicle("KHI-1003", 12, 0);
+    checkoutVehicle("KHI-1001", 12, 30);
+    displayParkingGrid();
+    parkVehicle("KHI-3001", "Hamza", "Car", 13, 0);
+    displayParkingGrid();
+
+    displaySummaryStats();
+    cout << "\n**************** ALL TESTS COMPLETED ****************\n";
+}
 
 int main()
 {
@@ -1255,3 +1286,4 @@ int main()
 
     return 0;
 }
+

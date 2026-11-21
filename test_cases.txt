@@ -1,0 +1,44 @@
+1
+2
+KHI-9999
+10 0
+4
+1
+KHI-1001
+Mohammad Taha
+CAR
+08 30
+1
+KHI-1002
+Abdul Haseeb
+BIKE
+08:45
+3
+KHI-1001
+2
+KHI-1001
+1030
+4
+1
+KHI-2001
+Bilal Ahmed
+SUV
+09 00
+1
+KHI-2001
+Bilal Ahmed
+SUV
+09 15
+1
+KHI-2002
+Usman Khan
+CAR
+09 30
+7
+2
+KHI-2001
+11 30
+5
+9
+8
+0
